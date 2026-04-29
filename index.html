@@ -1,0 +1,2490 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ATLAS Financeiro">
+<meta name="theme-color" content="#07070e">
+<title>ATLAS Financeiro</title>
+<link rel="manifest" id="pwa-manifest">
+<link id="apple-icon" rel="apple-touch-icon">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  /* Sync indicator */
+  .sync-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    display: inline-block; margin-right: 6px;
+    transition: background 0.3s;
+  }
+  .sync-dot.ok      { background: var(--success); box-shadow: 0 0 6px rgba(60,255,168,.5); }
+  .sync-dot.syncing { background: var(--warning); animation: pulse 1s infinite; }
+  .sync-dot.error   { background: var(--danger); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .sync-label { font-size: 11px; color: var(--text-muted); }
+  :root {
+    --bg: #07070e;
+    --surface: #0f0f1c;
+    --card: #161625;
+    --card-hover: #1c1c30;
+    --border: #22223a;
+    --border-light: #1a1a2e;
+    --accent: #d4f53c;
+    --accent-dim: rgba(212,245,60,0.1);
+    --accent-border: rgba(212,245,60,0.2);
+    --text: #eeeef8;
+    --text-muted: #72728a;
+    --text-dim: #3a3a52;
+    --success: #3cffa8;
+    --danger: #ff4f6a;
+    --warning: #ffb84f;
+    --purple: #9b8dff;
+    --sidebar-w: 224px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 14px;
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ── Sidebar ─────────────────────────────────── */
+  .sidebar {
+    width: var(--sidebar-w);
+    min-height: 100vh;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    left:0; top:0; bottom:0;
+    z-index: 100;
+  }
+  .sidebar-logo {
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo-text {
+    font-family: 'Syne', sans-serif;
+    font-size: 19px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    line-height: 1;
+  }
+  .logo-text .ast { color: var(--accent); }
+  .logo-sub {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 4px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+  }
+  .sidebar-nav {
+    flex: 1;
+    padding: 10px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    overflow-y: auto;
+  }
+  .nav-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    padding: 14px 12px 5px;
+    font-weight: 600;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.12s;
+    border: 1px solid transparent;
+    user-select: none;
+  }
+  .nav-item:hover { background: var(--card); color: var(--text); }
+  .nav-item.active {
+    background: var(--accent-dim);
+    color: var(--accent);
+    border-color: var(--accent-border);
+  }
+  .nav-icon { font-size: 14px; width: 18px; text-align: center; flex-shrink:0; }
+  .sidebar-bottom {
+    padding: 10px 8px 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* ── Main ────────────────────────────────────── */
+  .main {
+    margin-left: var(--sidebar-w);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .topbar {
+    padding: 18px 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg);
+    position: sticky;
+    top:0;
+    z-index: 50;
+    gap: 12px;
+  }
+  .topbar-left { min-width: 0; }
+  .topbar-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .topbar-sub { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+  .content { padding: 28px 32px; flex: 1; }
+
+  /* ── Cards ───────────────────────────────────── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .card-sm { padding: 16px 18px; }
+
+  /* ── Grid ────────────────────────────────────── */
+  .g4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
+  .g3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+  .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .g21 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+  .mt16 { margin-top: 16px; }
+  .mt24 { margin-top: 24px; }
+  .mb16 { margin-bottom: 16px; }
+  .mb24 { margin-bottom: 24px; }
+
+  /* ── KPI ──────────────────────────────────────── */
+  .kpi-icon {
+    width: 34px; height: 34px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; margin-bottom: 12px;
+  }
+  .kpi-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+  .kpi-val {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .kpi-val.acc { color: var(--accent); }
+  .kpi-val.ok  { color: var(--success); }
+  .kpi-val.bad { color: var(--danger); }
+  .kpi-val.pur { color: var(--purple); }
+  .kpi-val.warn{ color: var(--warning); }
+  .kpi-sub { font-size: 11px; color: var(--text-muted); margin-top: 5px; }
+
+  /* ── Buttons ──────────────────────────────────── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.12s;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    white-space: nowrap;
+  }
+  .btn-primary { background: var(--accent); color: #07070e; }
+  .btn-primary:hover { background: #c4e532; transform: translateY(-1px); }
+  .btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--card-hover); color: var(--text); }
+  .btn-danger-sm {
+    background: rgba(255,79,106,0.12); color: var(--danger);
+    border: 1px solid rgba(255,79,106,0.18);
+    padding: 4px 9px; font-size: 11px; border-radius: 6px;
+    cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600;
+    transition: all 0.12s;
+  }
+  .btn-danger-sm:hover { background: rgba(255,79,106,0.22); }
+  .btn-edit-sm {
+    background: rgba(255,255,255,0.05); color: var(--text-muted);
+    border: 1px solid var(--border);
+    padding: 4px 9px; font-size: 11px; border-radius: 6px;
+    cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600;
+    transition: all 0.12s;
+  }
+  .btn-edit-sm:hover { background: var(--card-hover); color: var(--text); }
+  .btn-sm { padding: 6px 12px; font-size: 11px; }
+
+  /* ── Section header ───────────────────────────── */
+  .sec-hdr {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    gap: 10px;
+  }
+  .sec-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  /* ── Table ────────────────────────────────────── */
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    text-align: left;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+  }
+  td {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--border-light);
+    font-size: 13px;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.018); }
+
+  /* ── Badge ────────────────────────────────────── */
+  .badge {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+  }
+  .b-mensal   { background:rgba(212,245,60,0.14); color:var(--accent); }
+  .b-pontual  { background:rgba(155,141,255,0.14); color:var(--purple); }
+  .b-ativo    { background:rgba(60,255,168,0.14); color:var(--success); }
+  .b-inativo  { background:rgba(255,255,255,0.07); color:var(--text-muted); }
+  .b-receita  { background:rgba(60,255,168,0.12); color:var(--success); }
+  .b-despesa  { background:rgba(255,79,106,0.12); color:var(--danger); }
+  .b-pj       { background:rgba(212,245,60,0.1); color:var(--accent); }
+  .b-pf       { background:rgba(155,141,255,0.1); color:var(--purple); }
+
+  /* ── Modal ────────────────────────────────────── */
+  .overlay {
+    position: fixed; inset: 0;
+    background: rgba(4,4,10,0.75);
+    backdrop-filter: blur(6px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .overlay.open { opacity: 1; pointer-events: all; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    width: 460px;
+    max-width: 92vw;
+    transform: translateY(18px);
+    transition: transform 0.2s;
+  }
+  .overlay.open .modal { transform: translateY(0); }
+  .modal-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 17px;
+    font-weight: 700;
+    margin-bottom: 20px;
+  }
+  .modal-footer {
+    display: flex; justify-content: flex-end;
+    gap: 8px; margin-top: 22px;
+  }
+
+  /* ── Form ─────────────────────────────────────── */
+  .fg { margin-bottom: 13px; }
+  .fr { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  label {
+    display: block;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 5px;
+  }
+  input, select, textarea {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 12px;
+    color: var(--text);
+    font-size: 13px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    outline: none;
+    transition: border-color 0.12s;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+  select option { background: var(--card); }
+  textarea { resize: vertical; }
+
+  /* ── Tabs ─────────────────────────────────────── */
+  .tabs {
+    display: flex; gap: 3px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: 3px;
+    width: fit-content;
+    margin-bottom: 18px;
+  }
+  .tab {
+    padding: 6px 14px;
+    border-radius: 7px;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer; color: var(--text-muted);
+    border: none; background: none;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    transition: all 0.12s;
+  }
+  .tab.active { background: var(--accent); color: #07070e; }
+
+  /* ── Empty ────────────────────────────────────── */
+  .empty { text-align:center; padding:44px 20px; color:var(--text-muted); }
+  .empty-icon { font-size: 30px; margin-bottom: 12px; opacity: 0.4; }
+  .empty-text { font-size: 13px; line-height: 1.6; }
+
+  /* ── Colors ───────────────────────────────────── */
+  .pos { color: var(--success); }
+  .neg { color: var(--danger); }
+  .dim { color: var(--text-muted); }
+
+  /* ── Views ────────────────────────────────────── */
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* ── Toast ────────────────────────────────────── */
+  .toast {
+    position: fixed; bottom: 22px; right: 22px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 11px 18px;
+    font-size: 13px; font-weight: 500;
+    z-index: 2000;
+    transform: translateY(70px); opacity: 0;
+    transition: all 0.25s;
+    pointer-events: none;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.ok { border-color: rgba(60,255,168,0.4); color: var(--success); }
+  .toast.warn { border-color: rgba(255,184,79,0.4); color: var(--warning); }
+
+  /* ── Chart container ──────────────────────────── */
+  .chart-wrap { position: relative; }
+
+  /* ── Accent line ──────────────────────────────── */
+  .accent-line {
+    width: 28px; height: 3px;
+    background: var(--accent);
+    border-radius: 2px;
+    margin-bottom: 10px;
+  }
+
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* ── Export type selector ─────────────────────── */
+  .exp-type-btn {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .exp-type-btn:hover { border-color: var(--accent-border); background: var(--card-hover); }
+  .exp-type-btn.active { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
+  .exp-type-btn.active div:last-child { color: rgba(212,245,60,0.6) !important; }
+</style>
+</head>
+<body>
+
+<!-- ── Sidebar ──────────────────────────────────────────────── -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-text">Atlas<span class="ast">*</span>Lab<span class="ast">*</span></div>
+    <div class="logo-sub">Gestão Financeira</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-label">Principal</div>
+    <div class="nav-item active" onclick="go('dashboard')">
+      <span class="nav-icon">◈</span> Dashboard
+    </div>
+    <div class="nav-item" onclick="go('clientes')">
+      <span class="nav-icon">◉</span> Clientes
+    </div>
+    <div class="nav-label">Módulos</div>
+    <div class="nav-item" onclick="go('pj')">
+      <span class="nav-icon">⬡</span> ATLAS Lab · PJ
+    </div>
+    <div class="nav-item" onclick="go('pf')">
+      <span class="nav-icon">○</span> Pessoal · PF
+    </div>
+    <div class="nav-item" onclick="go('bills')">
+      <span class="nav-icon">◫</span> Contas a Pagar
+    </div>
+    <div class="nav-label">Análise</div>
+    <div class="nav-item" onclick="go('projecoes')">
+      <span class="nav-icon">◇</span> Projeções
+    </div>
+    <div class="nav-item" onclick="go('backup')">
+      <span class="nav-icon">⬇</span> Backup
+    </div>
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="nav-item" id="pwa-install-btn" style="display:none;color:var(--accent);border:1px solid var(--accent-border)" onclick="installPWA()">
+      <span class="nav-icon">⬇</span> Instalar App
+    </div>
+    <div class="nav-item" onclick="go('config')">
+      <span class="nav-icon">⚙</span> Configurações
+    </div>
+  </div>
+</aside>
+
+<!-- ── Main ─────────────────────────────────────────────────── -->
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-title" id="v-title">Dashboard</div>
+      <div class="topbar-sub" id="v-sub">Visão geral · Atlas Lab</div>
+    </div>
+    <div id="v-actions" style="display:flex;align-items:center;gap:12px">
+      <div id="sync-status" style="display:flex;align-items:center">
+        <span class="sync-dot syncing"></span>
+        <span class="sync-label" id="sync-label">Conectando...</span>
+      </div>
+      <button class="btn btn-ghost" onclick="openModal('export')" style="gap:7px">
+        <span>↓</span> Exportar Relatório
+      </button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD ─────────────────────────────── -->
+    <div class="view active" id="view-dashboard">
+      <div id="backup-banner" style="display:none;margin-bottom:16px;padding:12px 16px;background:rgba(255,184,79,.08);border:1px solid rgba(255,184,79,.25);border-radius:10px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:16px">💾</span>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--warning)" id="backup-banner-msg">Faça um backup dos seus dados</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Leva menos de 5 segundos e protege todas as suas informações</div>
+          </div>
+        </div>
+        <button class="btn btn-sm" style="background:rgba(255,184,79,.15);color:var(--warning);border:1px solid rgba(255,184,79,.3);white-space:nowrap" onclick="exportBackup()">↓ Fazer Backup</button>
+      </div>
+      <div class="g4" id="dash-kpis"></div>
+      <div class="g21 mt24">
+        <div class="card">
+          <div class="sec-hdr">
+            <div class="sec-title">Receita vs Despesas</div>
+            <select onchange="renderCharts()" id="ch-period" style="width:auto;padding:5px 10px;font-size:11px">
+              <option value="6">Últimos 6 meses</option>
+              <option value="3">Últimos 3 meses</option>
+            </select>
+          </div>
+          <div class="chart-wrap" style="height:190px"><canvas id="ch-revenue"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="sec-title mb16">Despesas PJ</div>
+          <div class="chart-wrap" style="height:190px"><canvas id="ch-exp-donut"></canvas></div>
+        </div>
+      </div>
+      <div class="card mt24">
+        <div class="sec-hdr">
+          <div class="sec-title">Últimos lançamentos</div>
+          <button class="btn btn-ghost btn-sm" onclick="go('pj')">Ver todos</button>
+        </div>
+        <div class="tbl-wrap" id="dash-recent"></div>
+      </div>
+    </div>
+
+    <!-- CLIENTES ───────────────────────────────── -->
+    <div class="view" id="view-clientes">
+      <div class="g3 mb24" id="cli-kpis"></div>
+      <div class="card">
+        <div class="sec-hdr">
+          <div class="sec-title">Carteira de Clientes</div>
+          <button class="btn btn-primary btn-sm" onclick="openModal('cli')">+ Novo Cliente</button>
+        </div>
+        <div class="tbl-wrap" id="cli-table"></div>
+      </div>
+    </div>
+
+    <!-- PJ ─────────────────────────────────────── -->
+    <div class="view" id="view-pj">
+      <div class="g4 mb24" id="pj-kpis"></div>
+      <div class="tabs">
+        <button class="tab active" onclick="tabSwitch('pj','todos',this)">Todos</button>
+        <button class="tab" onclick="tabSwitch('pj','receita',this)">Receitas</button>
+        <button class="tab" onclick="tabSwitch('pj','despesa',this)">Despesas</button>
+      </div>
+      <div class="card">
+        <div class="sec-hdr">
+          <div class="sec-title">Lançamentos · ATLAS Lab</div>
+          <button class="btn btn-primary btn-sm" onclick="openModal('pj-tx')">+ Lançamento</button>
+        </div>
+        <div class="tbl-wrap" id="pj-table"></div>
+      </div>
+    </div>
+
+    <!-- PF ─────────────────────────────────────── -->
+    <div class="view" id="view-pf">
+      <div class="g3 mb24" id="pf-kpis"></div>
+      <div class="tabs">
+        <button class="tab active" onclick="tabSwitch('pf','todos',this)">Todos</button>
+        <button class="tab" onclick="tabSwitch('pf','receita',this)">Receitas</button>
+        <button class="tab" onclick="tabSwitch('pf','despesa',this)">Despesas</button>
+      </div>
+      <div class="card">
+        <div class="sec-hdr">
+          <div class="sec-title">Lançamentos · Pessoal</div>
+          <button class="btn btn-primary btn-sm" onclick="openModal('pf-tx')">+ Lançamento</button>
+        </div>
+        <div class="tbl-wrap" id="pf-table"></div>
+      </div>
+    </div>
+
+    <!-- CONTAS A PAGAR ──────────────────────────── -->
+    <div class="view" id="view-bills">
+      <div class="g4 mb24" id="bills-kpis"></div>
+      <div class="tabs">
+        <button class="tab active" onclick="tabSwitch('bills','todas',this)">Todas</button>
+        <button class="tab" onclick="tabSwitch('bills','pendente',this)">Pendentes</button>
+        <button class="tab" onclick="tabSwitch('bills','vencida',this)">Vencidas</button>
+        <button class="tab" onclick="tabSwitch('bills','pago',this)">Pagas</button>
+      </div>
+      <div class="card">
+        <div class="sec-hdr">
+          <div class="sec-title">Contas a Pagar</div>
+          <button class="btn btn-primary btn-sm" onclick="openModal('bill')">+ Nova Conta</button>
+        </div>
+        <div class="tbl-wrap" id="bills-table"></div>
+      </div>
+    </div>
+
+    <!-- PROJEÇÕES ──────────────────────────────── -->
+    <div class="view" id="view-projecoes">
+      <div class="g3 mb24" id="proj-kpis"></div>
+      <div class="card">
+        <div class="sec-title mb16">Projeção de Receita · próximos 6 meses</div>
+        <div class="chart-wrap" style="height:260px"><canvas id="ch-proj"></canvas></div>
+      </div>
+      <div class="card mt24">
+        <div class="sec-title mb16">Projeção de Lucro · próximos 6 meses</div>
+        <div class="chart-wrap" style="height:220px"><canvas id="ch-proj-profit"></canvas></div>
+      </div>
+    </div>
+
+    <!-- BACKUP ──────────────────────────────────── -->
+    <div class="view" id="view-backup">
+
+      <div class="g3 mb24" id="backup-kpis"></div>
+
+      <div class="g2">
+        <!-- Export -->
+        <div class="card">
+          <div style="font-size:28px;margin-bottom:12px">💾</div>
+          <div class="accent-line"></div>
+          <div class="sec-title mb16">Exportar Backup</div>
+          <p style="font-size:13px;color:var(--text-muted);line-height:1.7;margin-bottom:20px">
+            Baixa um arquivo <strong style="color:var(--text)">.json</strong> com todos os seus dados — clientes, lançamentos PJ, pessoal, contas e configurações.<br><br>
+            Guarde no <strong style="color:var(--text)">Google Drive, iCloud ou pendrive</strong>. Funciona como restauração em qualquer dispositivo ou plataforma.
+          </p>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:20px;font-size:12px;color:var(--text-muted)">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+              <span>Clientes</span><span id="bk-count-cli" style="color:var(--text)">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+              <span>Lançamentos PJ</span><span id="bk-count-pj" style="color:var(--text)">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+              <span>Lançamentos Pessoal</span><span id="bk-count-pf" style="color:var(--text)">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between">
+              <span>Contas a Pagar</span><span id="bk-count-bills" style="color:var(--text)">—</span>
+            </div>
+          </div>
+          <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="exportBackup()">
+            ↓ Exportar Backup Agora
+          </button>
+        </div>
+
+        <!-- Import -->
+        <div class="card">
+          <div style="font-size:28px;margin-bottom:12px">📂</div>
+          <div class="accent-line" style="background:var(--purple)"></div>
+          <div class="sec-title mb16">Importar Backup</div>
+          <p style="font-size:13px;color:var(--text-muted);line-height:1.7;margin-bottom:20px">
+            Restaura um backup anterior ou migra dados para este dispositivo.<br><br>
+            <strong style="color:var(--warning)">⚠ Atenção:</strong> a importação <strong style="color:var(--text)">substitui todos os dados atuais</strong>. Faça um backup antes se necessário.
+          </p>
+          <div id="import-drop" style="border:2px dashed var(--border);border-radius:10px;padding:28px;text-align:center;margin-bottom:20px;cursor:pointer;transition:all .15s"
+            onclick="document.getElementById('import-file').click()"
+            ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+            ondragleave="this.style.borderColor='var(--border)'"
+            ondrop="handleDrop(event)">
+            <div style="font-size:22px;margin-bottom:8px">📁</div>
+            <div style="font-size:13px;color:var(--text-muted)">Clique ou arraste o arquivo <strong style="color:var(--text)">.json</strong> aqui</div>
+          </div>
+          <input type="file" id="import-file" accept=".json" style="display:none" onchange="importBackup(this)">
+          <button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="document.getElementById('import-file').click()">
+            📂 Selecionar Arquivo
+          </button>
+        </div>
+      </div>
+
+      <!-- Histórico -->
+      <div class="card mt24">
+        <div class="sec-title mb16">Histórico de Backups</div>
+        <div id="backup-history"></div>
+      </div>
+
+    </div>
+
+    <!-- CONFIG ─────────────────────────────────── -->
+    <div class="view" id="view-config">
+      <div class="card" style="max-width:440px">
+        <div class="accent-line"></div>
+        <div class="sec-title mb16">Parâmetros do Sistema</div>
+        <div class="fg">
+          <label>Alíquota de Impostos (%)</label>
+          <input type="number" id="cfg-tax" placeholder="Ex: 6" step="0.1" min="0" max="100">
+        </div>
+        <div class="fg">
+          <label>Pró-labore Mensal (R$)</label>
+          <input type="number" id="cfg-pl" placeholder="Ex: 3000" min="0">
+        </div>
+        <div class="fg">
+          <label>Meta Reserva Emergência PJ (R$)</label>
+          <input type="number" id="cfg-res-pj" placeholder="Ex: 5000" min="0">
+        </div>
+        <div class="fg">
+          <label>Meta Reserva Pessoal (R$)</label>
+          <input type="number" id="cfg-res-pf" placeholder="Ex: 10000" min="0">
+        </div>
+        <button class="btn btn-primary" onclick="saveConfig()">Salvar Configurações</button>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- ── Modal: Cliente ──────────────────────────────────────── -->
+<div class="overlay" id="overlay-cli">
+  <div class="modal">
+    <div class="modal-title" id="cli-modal-title">Novo Cliente</div>
+    <input type="hidden" id="cli-id">
+    <div class="fg">
+      <label>Nome do cliente / empresa</label>
+      <input type="text" id="cli-name" placeholder="Ex: FP Flow">
+    </div>
+    <div class="fr">
+      <div class="fg">
+        <label>Tipo de contrato</label>
+        <select id="cli-type">
+          <option value="mensal">Mensal (Recorrente)</option>
+          <option value="pontual">Pontual (Freela)</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Valor mensal (R$)</label>
+        <input type="number" id="cli-value" placeholder="0,00" min="0" step="0.01">
+      </div>
+    </div>
+    <div class="fg">
+      <label>Status</label>
+      <select id="cli-status">
+        <option value="ativo">Ativo</option>
+        <option value="inativo">Inativo</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label>Observações</label>
+      <textarea id="cli-notes" rows="2" placeholder="Notas sobre o cliente..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('cli')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveCliente()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal: Lançamento PJ ───────────────────────────────── -->
+<div class="overlay" id="overlay-pj-tx">
+  <div class="modal">
+    <div class="modal-title">Novo Lançamento · ATLAS Lab</div>
+    <div class="fr">
+      <div class="fg">
+        <label>Tipo</label>
+        <select id="pj-type" onchange="fillPJCats()">
+          <option value="receita">Receita</option>
+          <option value="despesa">Despesa</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Data</label>
+        <input type="date" id="pj-date">
+      </div>
+    </div>
+    <div class="fg">
+      <label>Descrição</label>
+      <input type="text" id="pj-desc" placeholder="Ex: Pacote mensal — FP Flow">
+    </div>
+    <div class="fr">
+      <div class="fg">
+        <label>Categoria</label>
+        <select id="pj-cat"></select>
+      </div>
+      <div class="fg">
+        <label>Valor (R$)</label>
+        <input type="number" id="pj-val" placeholder="0,00" min="0" step="0.01">
+      </div>
+    </div>
+    <div class="fg">
+      <label>Cliente vinculado (opcional)</label>
+      <select id="pj-cli"><option value="">— Nenhum —</option></select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('pj-tx')">Cancelar</button>
+      <button class="btn btn-primary" onclick="savePJTx()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal: Lançamento PF ───────────────────────────────── -->
+<div class="overlay" id="overlay-pf-tx">
+  <div class="modal">
+    <div class="modal-title">Novo Lançamento · Pessoal</div>
+    <div class="fr">
+      <div class="fg">
+        <label>Tipo</label>
+        <select id="pf-type" onchange="fillPFCats()">
+          <option value="receita">Receita</option>
+          <option value="despesa">Despesa</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Data</label>
+        <input type="date" id="pf-date">
+      </div>
+    </div>
+    <div class="fg">
+      <label>Descrição</label>
+      <input type="text" id="pf-desc" placeholder="Ex: Pró-labore Abril">
+    </div>
+    <div class="fr">
+      <div class="fg">
+        <label>Categoria</label>
+        <select id="pf-cat"></select>
+      </div>
+      <div class="fg">
+        <label>Valor (R$)</label>
+        <input type="number" id="pf-val" placeholder="0,00" min="0" step="0.01">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('pf-tx')">Cancelar</button>
+      <button class="btn btn-primary" onclick="savePFTx()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal: Conta a Pagar ───────────────────────────────── -->
+<div class="overlay" id="overlay-bill">
+  <div class="modal">
+    <div class="modal-title" id="bill-modal-title">Nova Conta a Pagar</div>
+    <input type="hidden" id="bill-id">
+    <div class="fg">
+      <label>Descrição</label>
+      <input type="text" id="bill-desc" placeholder="Ex: Plano Adobe, Contador, Aluguel...">
+    </div>
+    <div class="fr">
+      <div class="fg">
+        <label>Valor (R$)</label>
+        <input type="number" id="bill-val" placeholder="0,00" min="0" step="0.01">
+      </div>
+      <div class="fg">
+        <label>Vencimento</label>
+        <input type="date" id="bill-due">
+      </div>
+    </div>
+    <div class="fr">
+      <div class="fg">
+        <label>Módulo</label>
+        <select id="bill-module" onchange="fillBillCats()">
+          <option value="pj">ATLAS Lab · PJ</option>
+          <option value="pf">Pessoal · PF</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Categoria</label>
+        <select id="bill-cat"></select>
+      </div>
+    </div>
+    <div class="fg">
+      <label>Recorrência</label>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px">
+        <div class="exp-type-btn active" data-rec="unica" onclick="selectRec('unica')">
+          <div style="font-size:14px;margin-bottom:3px">1×</div>
+          <div style="font-size:11px;font-weight:700">Única</div>
+        </div>
+        <div class="exp-type-btn" data-rec="mensal" onclick="selectRec('mensal')">
+          <div style="font-size:14px;margin-bottom:3px">↻</div>
+          <div style="font-size:11px;font-weight:700">Mensal</div>
+        </div>
+        <div class="exp-type-btn" data-rec="anual" onclick="selectRec('anual')">
+          <div style="font-size:14px;margin-bottom:3px">📅</div>
+          <div style="font-size:11px;font-weight:700">Anual</div>
+        </div>
+      </div>
+    </div>
+    <div class="fg">
+      <label>Observações</label>
+      <textarea id="bill-notes" rows="2" placeholder="Notas sobre esta conta..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('bill')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveBill()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal: Marcar como Pago ────────────────────────────── -->
+<div class="overlay" id="overlay-pay">
+  <div class="modal" style="width:400px">
+    <div class="modal-title">Confirmar Pagamento</div>
+    <input type="hidden" id="pay-bill-id">
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:18px;line-height:1.6">
+      Deseja registrar o pagamento e lançar automaticamente no módulo correspondente?
+    </p>
+    <div class="card card-sm" id="pay-summary" style="margin-bottom:16px;border-color:var(--accent-border)"></div>
+    <div class="fg">
+      <label>Data do pagamento</label>
+      <input type="date" id="pay-date">
+    </div>
+    <div class="fg">
+      <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;font-weight:400;color:var(--text);cursor:pointer">
+        <input type="checkbox" id="pay-launch" checked style="width:auto;accent-color:var(--accent)">
+        Lançar automaticamente como despesa no módulo
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('pay')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmPay()">✓ Confirmar Pagamento</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal: Confirmar Importação ────────────────────────── -->
+<div class="overlay" id="overlay-import">
+  <div class="modal" style="width:420px">
+    <div class="modal-title">Confirmar Importação</div>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">
+      Os dados atuais serão <strong style="color:var(--danger)">substituídos</strong> pelo backup selecionado. Esta ação não pode ser desfeita.
+    </p>
+    <div class="card card-sm mb16" style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px">
+        <span style="font-size:12px;color:var(--text-muted)">Data do backup</span>
+        <span style="font-size:12px;font-weight:600" id="import-preview-date">—</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px">
+        <span style="font-size:12px;color:var(--text-muted)">Total de registros</span>
+        <span style="font-size:12px;font-weight:600;color:var(--accent)" id="import-preview-total">—</span>
+      </div>
+      <div style="height:1px;background:var(--border);margin:8px 0"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px;color:var(--text-muted)">
+        <div>Clientes: <strong style="color:var(--text)" id="import-preview-cli">—</strong></div>
+        <div>Lançamentos PJ: <strong style="color:var(--text)" id="import-preview-pj">—</strong></div>
+        <div>Pessoal: <strong style="color:var(--text)" id="import-preview-pf">—</strong></div>
+        <div>Contas a Pagar: <strong style="color:var(--text)" id="import-preview-bills">—</strong></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('import')">Cancelar</button>
+      <button class="btn btn-primary" style="background:var(--danger);color:#fff" onclick="confirmImport()">Substituir e Restaurar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal: Exportar ─────────────────────────────────────── -->
+<div class="overlay" id="overlay-export">
+  <div class="modal" style="width:400px">
+    <div class="modal-title">Exportar Relatório PDF</div>
+    <div class="fg">
+      <label>Tipo de Relatório</label>
+      <div id="exp-type-group" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px">
+        <div class="exp-type-btn active" data-val="completo" onclick="selectExpType('completo')">
+          <div style="font-size:16px;margin-bottom:4px">📊</div>
+          <div style="font-size:11px;font-weight:700">Completo</div>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:2px">PJ + Pessoal</div>
+        </div>
+        <div class="exp-type-btn" data-val="pj" onclick="selectExpType('pj')">
+          <div style="font-size:16px;margin-bottom:4px">⬡</div>
+          <div style="font-size:11px;font-weight:700">ATLAS Lab</div>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:2px">Apenas PJ</div>
+        </div>
+        <div class="exp-type-btn" data-val="pf" onclick="selectExpType('pf')">
+          <div style="font-size:16px;margin-bottom:4px">○</div>
+          <div style="font-size:11px;font-weight:700">Pessoal</div>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:2px">Apenas PF</div>
+        </div>
+      </div>
+    </div>
+    <div class="fr">
+      <div class="fg">
+        <label>Mês</label>
+        <select id="exp-month">
+          <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+          <option value="3">Março</option><option value="4">Abril</option>
+          <option value="5">Maio</option><option value="6">Junho</option>
+          <option value="7">Julho</option><option value="8">Agosto</option>
+          <option value="9">Setembro</option><option value="10">Outubro</option>
+          <option value="11">Novembro</option><option value="12">Dezembro</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Ano</label>
+        <select id="exp-year"></select>
+      </div>
+    </div>
+    <div class="fg" id="exp-cli-wrap">
+      <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;font-weight:400;color:var(--text);cursor:pointer">
+        <input type="checkbox" id="exp-cli" checked style="width:auto;accent-color:var(--accent)">
+        Incluir tabela de Clientes Ativos
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('export')">Cancelar</button>
+      <button class="btn btn-primary" onclick="exportReport()">↓ Gerar PDF</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── Data ─────────────────────────────────────────────────── */
+const CATS = {
+  pj: {
+    receita: ['Pacote Mensal','Projeto Pontual','Consultoria','Tráfego Pago','Criativos','Outro'],
+    despesa: ['Ferramentas / Software','Marketing','Contador / Jurídico','Equipamentos','Impostos','Pró-labore Transferido','Outros']
+  },
+  pf: {
+    receita: ['Pró-labore','Renda Extra','Investimentos','Outro'],
+    despesa: ['Moradia','Alimentação','Transporte','Saúde','Educação','Lazer','Assinaturas','Outros']
+  }
+};
+
+let S = {
+  clients: [],
+  pj: [],
+  pf: [],
+  bills: [],
+  cfg: { tax: 6, proLabore: 3000, resPJ: 0, resPF: 0 }
+};
+
+let filters = { pj: 'todos', pf: 'todos', bills: 'todas' };
+let CHS = {};
+
+/* ── Supabase REST (fetch direto — funciona em qualquer ambiente) ── */
+const SB_URL = 'https://xstsettiuofdgwpixfek.supabase.co';
+const SB_KEY = 'sb_publishable_S-4lQg1xNWf_6hBf-IetgQ_4SMG5OEJ';
+const SB_HDR = { 'Content-Type':'application/json', 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` };
+
+async function sbSelect() {
+  const r = await fetch(`${SB_URL}/rest/v1/atlas_store?select=key,value`, { headers: SB_HDR });
+  if(!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+  return r.json();
+}
+
+async function sbUpsert(key, value) {
+  const r = await fetch(`${SB_URL}/rest/v1/atlas_store`, {
+    method: 'POST',
+    headers: { ...SB_HDR, 'Prefer': 'resolution=merge-duplicates' },
+    body: JSON.stringify({ key, value, updated_at: new Date().toISOString() })
+  });
+  if(!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+}
+
+function setSyncStatus(state, msg) {
+  const dot   = document.querySelector('.sync-dot');
+  const label = document.getElementById('sync-label');
+  if(!dot||!label) return;
+  dot.className = `sync-dot ${state}`;
+  label.textContent = msg;
+}
+
+/* ── Storage ─────────────────────────────────────────────── */
+async function load() {
+  try {
+    setSyncStatus('syncing','Sincronizando...');
+    const data = await sbSelect();
+
+    if(data && data.length > 0) {
+      data.forEach(row => {
+        const k = row.key.replace('atl_','');
+        if(S.hasOwnProperty(k)) S[k] = row.value;
+      });
+      setSyncStatus('ok','Sincronizado');
+    } else {
+      await migrateFromLocal();
+    }
+  } catch(e) {
+    console.error('Supabase load error:', e.message);
+    setSyncStatus('error','Offline — usando local');
+    await loadLocal();
+  }
+}
+
+async function loadLocal() {
+  for(const k of ['clients','pj','pf','bills','cfg']) {
+    try {
+      const r = await window.storage.get('atl_'+k);
+      if(r?.value) S[k] = JSON.parse(r.value);
+    } catch(e){}
+  }
+}
+
+async function migrateFromLocal() {
+  let hasLocal = false;
+  for(const k of ['clients','pj','pf','bills','cfg']) {
+    try {
+      const r = await window.storage.get('atl_'+k);
+      if(r?.value) { S[k] = JSON.parse(r.value); hasLocal = true; }
+    } catch(e){}
+  }
+  if(hasLocal) {
+    setSyncStatus('syncing','Migrando dados...');
+    for(const k of ['clients','pj','pf','bills','cfg']) await persistToSupabase(k);
+    setSyncStatus('ok','Dados migrados ✓');
+    toast('✓ Dados migrados para o Supabase — sincronizados em todos os dispositivos');
+  } else {
+    setSyncStatus('ok','Pronto');
+  }
+}
+
+async function persistToSupabase(k) {
+  try {
+    await sbUpsert('atl_'+k, S[k]);
+  } catch(e) {
+    console.error('Persist error:', e.message);
+    setSyncStatus('error','Erro ao salvar');
+    try { await window.storage.set('atl_'+k, JSON.stringify(S[k])); } catch(le){}
+  }
+}
+
+async function persist(k) {
+  setSyncStatus('syncing','Salvando...');
+  await persistToSupabase(k);
+  setSyncStatus('ok','Salvo ✓');
+  setTimeout(()=>setSyncStatus('ok','Sincronizado'),1500);
+}
+
+/* ── Helpers ─────────────────────────────────────────────── */
+const R = (n) => 'R$ ' + Number(n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+const td = () => new Date().toISOString().slice(0,10);
+const mkey = (d) => { const x=new Date(d); return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}`; };
+const curMonth = () => mkey(td());
+
+function last6() {
+  const ms=[]; const now=new Date();
+  for(let i=5;i>=0;i--){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    ms.push({ key:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`,
+              lbl:d.toLocaleDateString('pt-BR',{month:'short',year:'2-digit'}) });
+  }
+  return ms;
+}
+
+function next6() {
+  const ms=[]; const now=new Date();
+  for(let i=1;i<=6;i++){
+    const d=new Date(now.getFullYear(),now.getMonth()+i,1);
+    ms.push(d.toLocaleDateString('pt-BR',{month:'short',year:'2-digit'}));
+  }
+  return ms;
+}
+
+function toast(msg, type='ok') {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className=`toast ${type} show`;
+  setTimeout(()=>t.className='toast',2600);
+}
+
+/* ── Navigate ────────────────────────────────────────────── */
+const VIEWS = {
+  dashboard: { title:'Dashboard', sub:'Visão geral · Atlas Lab' },
+  clientes:  { title:'Clientes',  sub:'Carteira e contratos' },
+  pj:        { title:'ATLAS Lab · PJ', sub:'Receitas e despesas da empresa' },
+  pf:        { title:'Pessoal · PF',   sub:'Finanças pessoais e pró-labore' },
+  bills:     { title:'Contas a Pagar', sub:'Vencimentos, recorrências e controle de pagamentos' },
+  projecoes: { title:'Projeções', sub:'Estimativas e planejamento futuro' },
+  backup:    { title:'Backup', sub:'Exportar, importar e histórico de backups' },
+};
+
+function go(v) {
+  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
+  document.getElementById('view-'+v).classList.add('active');
+  document.querySelector(`[onclick="go('${v}')"]`).classList.add('active');
+  document.getElementById('v-title').textContent = VIEWS[v].title;
+  document.getElementById('v-sub').textContent   = VIEWS[v].sub;
+  render(v);
+}
+
+function render(v) {
+  if(v==='dashboard') renderDash();
+  else if(v==='clientes') renderCli();
+  else if(v==='pj') renderPJ();
+  else if(v==='pf') renderPF();
+  else if(v==='bills') renderBills();
+  else if(v==='projecoes') renderProj();
+  else if(v==='backup') renderBackup();
+  else if(v==='config') renderConfig();
+}
+
+/* ── Dashboard ───────────────────────────────────────────── */
+function billStatus(b) {
+  if(b.status==='pago') return 'pago';
+  return new Date(b.due+'T12:00:00') < new Date(td()+'T00:00:00') ? 'vencida' : 'pendente';
+}
+
+function renderDash() {
+  const cm = curMonth();
+  const rev  = S.pj.filter(t=>t.type==='receita'&&mkey(t.date)===cm).reduce((s,t)=>s+t.val,0);
+  const exp  = S.pj.filter(t=>t.type==='despesa'&&mkey(t.date)===cm).reduce((s,t)=>s+t.val,0);
+  const tax  = rev*(S.cfg.tax/100);
+  const net  = rev-exp-tax;
+  const mrr  = S.clients.filter(c=>c.active&&c.type==='mensal').reduce((s,c)=>s+c.val,0);
+
+  // Bills summary for dashboard
+  const overdue  = S.bills.filter(b=>billStatus(b)==='vencida');
+  const pending  = S.bills.filter(b=>billStatus(b)==='pendente');
+  const overdueVal = overdue.reduce((s,b)=>s+b.val,0);
+  const pendingVal = pending.reduce((s,b)=>s+b.val,0);
+
+  document.getElementById('dash-kpis').innerHTML = `
+    <div class="card card-sm">
+      <div class="kpi-icon" style="background:rgba(212,245,60,.1)">💰</div>
+      <div class="kpi-label">Receita · Mês Atual</div>
+      <div class="kpi-val acc">${R(rev)}</div>
+      <div class="kpi-sub">MRR: ${R(mrr)}</div>
+    </div>
+    <div class="card card-sm">
+      <div class="kpi-icon" style="background:rgba(255,79,106,.1)">📤</div>
+      <div class="kpi-label">Despesas PJ</div>
+      <div class="kpi-val bad">${R(exp)}</div>
+      <div class="kpi-sub">Impostos est.: ${R(tax)}</div>
+    </div>
+    <div class="card card-sm">
+      <div class="kpi-icon" style="background:rgba(60,255,168,.1)">📈</div>
+      <div class="kpi-label">Lucro Líquido</div>
+      <div class="kpi-val ${net>=0?'ok':'bad'}">${R(net)}</div>
+      <div class="kpi-sub">Bruto: ${R(rev-exp)}</div>
+    </div>
+    <div class="card card-sm" style="${overdue.length?'border-color:rgba(255,79,106,.35);':''}cursor:pointer" onclick="go('bills')">
+      <div class="kpi-icon" style="background:rgba(${overdue.length?'255,79,106':'155,141,255'},.1)">${overdue.length?'⚠':'◫'}</div>
+      <div class="kpi-label">Contas a Pagar</div>
+      <div class="kpi-val ${overdue.length?'bad':'pur'}">${overdue.length ? R(overdueVal) : R(pendingVal)}</div>
+      <div class="kpi-sub">${overdue.length ? `${overdue.length} vencida${overdue.length>1?'s':''}` : `${pending.length} pendente${pending.length!==1?'s':''}`}</div>
+    </div>
+  `;
+
+  const recent = [...S.pj.map(t=>({...t,orig:'PJ'})),...S.pf.map(t=>({...t,orig:'PF'}))]
+    .sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,8);
+
+  document.getElementById('dash-recent').innerHTML = recent.length ?
+    `<table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Módulo</th><th style="text-align:right">Valor</th></tr></thead><tbody>
+    ${recent.map(t=>`<tr>
+      <td class="dim">${new Date(t.date+'T12:00:00').toLocaleDateString('pt-BR')}</td>
+      <td>${t.desc}</td>
+      <td><span class="badge b-${t.type}">${t.cat}</span></td>
+      <td><span class="badge b-${t.orig.toLowerCase()}">${t.orig}</span></td>
+      <td style="text-align:right" class="${t.type==='receita'?'pos':'neg'}">${t.type==='receita'?'+':'-'}${R(t.val)}</td>
+    </tr>`).join('')}
+    </tbody></table>` :
+    `<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Nenhum lançamento ainda.<br>Use os módulos PJ ou Pessoal para começar.</div></div>`;
+
+  renderCharts();
+}
+
+function renderCharts() {
+  const months = last6();
+
+  const revData = months.map(m=>S.pj.filter(t=>t.type==='receita'&&mkey(t.date)===m.key).reduce((s,t)=>s+t.val,0));
+  const expData = months.map(m=>S.pj.filter(t=>t.type==='despesa'&&mkey(t.date)===m.key).reduce((s,t)=>s+t.val,0));
+  const labels  = months.map(m=>m.lbl);
+
+  if(CHS.rev) CHS.rev.destroy();
+  const c1 = document.getElementById('ch-revenue');
+  if(c1) CHS.rev = new Chart(c1, {
+    type:'bar',
+    data:{ labels, datasets:[
+      { label:'Receita', data:revData, backgroundColor:'rgba(212,245,60,.75)', borderRadius:5, borderSkipped:false },
+      { label:'Despesas', data:expData, backgroundColor:'rgba(255,79,106,.55)', borderRadius:5, borderSkipped:false }
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{ color:'#72728a', font:{size:11}, boxWidth:10 } } },
+      scales:{
+        x:{ grid:{color:'rgba(255,255,255,.04)'}, ticks:{color:'#72728a',font:{size:11}} },
+        y:{ grid:{color:'rgba(255,255,255,.04)'}, ticks:{color:'#72728a',font:{size:11},callback:v=>'R$'+(v/1000).toFixed(0)+'k'} }
+      }
+    }
+  });
+
+  const bycat = {};
+  S.pj.filter(t=>t.type==='despesa').forEach(t=>{ bycat[t.cat]=(bycat[t.cat]||0)+t.val; });
+  const cats = Object.keys(bycat);
+  const cols = ['#d4f53c','#ff4f6a','#3cffa8','#9b8dff','#ffb84f','#4fc3f7','#f48fb1','#80cbc4'];
+
+  if(CHS.dnt) CHS.dnt.destroy();
+  const c2 = document.getElementById('ch-exp-donut');
+  if(c2) CHS.dnt = new Chart(c2, {
+    type:'doughnut',
+    data:{
+      labels: cats.length ? cats : ['Sem dados'],
+      datasets:[{ data: cats.length ? cats.map(c=>bycat[c]) : [1],
+        backgroundColor: cats.length ? cols : ['rgba(255,255,255,.08)'],
+        borderWidth:0, hoverOffset:4 }]
+    },
+    options:{ responsive:true, maintainAspectRatio:false, cutout:'62%',
+      plugins:{ legend:{ position:'bottom', labels:{color:'#72728a',font:{size:10},boxWidth:8,padding:7} } }
+    }
+  });
+}
+
+/* ── Clientes ─────────────────────────────────────────────── */
+function renderCli() {
+  const active = S.clients.filter(c=>c.active);
+  const mrr = active.filter(c=>c.type==='mensal').reduce((s,c)=>s+c.val,0);
+  const mLen = active.filter(c=>c.type==='mensal').length;
+
+  document.getElementById('cli-kpis').innerHTML = `
+    <div class="card card-sm">
+      <div class="kpi-label">MRR · Receita Mensal Recorrente</div>
+      <div class="kpi-val acc">${R(mrr)}</div>
+      <div class="kpi-sub">${mLen} contrato${mLen!==1?'s':''} mensal${mLen!==1?'is':''}</div>
+    </div>
+    <div class="card card-sm">
+      <div class="kpi-label">Clientes Ativos</div>
+      <div class="kpi-val">${active.length}</div>
+      <div class="kpi-sub">de ${S.clients.length} cadastrado${S.clients.length!==1?'s':''}</div>
+    </div>
+    <div class="card card-sm">
+      <div class="kpi-label">Ticket Médio Mensal</div>
+      <div class="kpi-val">${R(mLen>0?mrr/mLen:0)}</div>
+      <div class="kpi-sub">Contratos recorrentes</div>
+    </div>
+  `;
+
+  document.getElementById('cli-table').innerHTML = S.clients.length ?
+    `<table><thead><tr><th>Cliente</th><th>Tipo</th><th>Valor</th><th>Status</th><th>Notas</th><th></th></tr></thead><tbody>
+    ${S.clients.map(c=>`<tr>
+      <td><strong>${c.name}</strong></td>
+      <td><span class="badge b-${c.type}">${c.type==='mensal'?'Mensal':'Pontual'}</span></td>
+      <td class="pos">${R(c.val)}</td>
+      <td><span class="badge b-${c.active?'ativo':'inativo'}">${c.active?'Ativo':'Inativo'}</span></td>
+      <td class="dim" style="font-size:12px">${c.notes||'—'}</td>
+      <td style="display:flex;gap:5px;justify-content:flex-end">
+        <button class="btn-edit-sm" onclick="editCli('${c.id}')">Editar</button>
+        <button class="btn-danger-sm" onclick="delCli('${c.id}')">✕</button>
+      </td>
+    </tr>`).join('')}
+    </tbody></table>` :
+    `<div class="empty"><div class="empty-icon">👥</div><div class="empty-text">Nenhum cliente cadastrado ainda.<br>Clique em "+ Novo Cliente" para adicionar.</div></div>`;
+}
+
+/* ── PJ ───────────────────────────────────────────────────── */
+function renderPJ() {
+  const cm = curMonth();
+  const rev = S.pj.filter(t=>t.type==='receita'&&mkey(t.date)===cm).reduce((s,t)=>s+t.val,0);
+  const exp = S.pj.filter(t=>t.type==='despesa'&&mkey(t.date)===cm).reduce((s,t)=>s+t.val,0);
+  const tax = rev*(S.cfg.tax/100);
+  const net = rev-exp-tax;
+
+  document.getElementById('pj-kpis').innerHTML = `
+    <div class="card card-sm">
+      <div class="kpi-label">Receita · Mês Atual</div>
+      <div class="kpi-val acc">${R(rev)}</div>
+    </div>
+    <div class="card card-sm">
+      <div class="kpi-label">Despesas · Mês Atual</div>
+      <div class="kpi-val bad">${R(exp)}</div>
+    </div>
+    <div class="card card-sm">
+      <div class="kpi-label">Impostos Estimados</div>
+      <div class="kpi-val warn">${R(tax)}</div>
+      <div class="kpi-sub">${S.cfg.tax}% sobre receita</div>
+    </div>
+    <div class="card card-sm">
+      <div class="kpi-label">Lucro Líquido</div>
+      <div class="kpi-val ${net>=0?'ok':'bad'}">${R(net)}</div>
+    </div>
+  `;
+
+  const list = (filters.pj==='todos'?S.pj:S.pj.filter(t=>t.type===filters.pj))
+    .slice().sort((a,b)=>new Date(b.date)-new Date(a.date));
+
+  document.getElementById('pj-table').innerHTML = list.length ?
+    `<table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Cliente</th><th>Tipo</th><th style="text-align:right">Valor</th><th></th></tr></thead><tbody>
+    ${list.map(t=>{
+      const cli=S.clients.find(c=>c.id===t.cliId);
+      return `<tr>
+        <td class="dim">${new Date(t.date+'T12:00:00').toLocaleDateString('pt-BR')}</td>
+        <td>${t.desc}</td>
+        <td><span class="badge b-${t.type}">${t.cat}</span></td>
+        <td class="dim" style="font-size:12px">${cli?cli.name:'—'}</td>
+        <td><span class="badge b-${t.type}">${t.type==='receita'?'▲ Receita':'▼ Despesa'}</span></td>
+        <td style="text-align:right" class="${t.type==='receita'?'pos':'neg'}">${t.type==='receita'?'+':'-'}${R(t.val)}</td>
+        <td><button class="btn-danger-sm" onclick="delPJTx('${t.id}')">✕</button></td>
+      </tr>`;
+    }).join('')}
+    </tbody></table>` :
+    `<div class="empty"><div class="empty-icon">📊</div><div class="empty-text">Nenhum lançamento${filters.pj!=='todos'?' nesta categoria':''}.<br>Clique em "+ Lançamento" para adicionar.</div></div>`;
+}
+
+/* ── PF ───────────────────────────────────────────────────── */
+function renderPF() {
+  const cm = curMonth();
+  const rev = S.pf.filter(t=>t.type==='receita'&&mkey(t.date)===cm).reduce((s,t)=>s+t.val,0);
+  const exp = S.pf.filter(t=>t.type==='despesa'&&mkey(t.date)===cm).reduce((s,t)=>s+t.val,0);
+  const bal = rev-exp;
+
+  document.getElementById('pf-kpis').innerHTML = `
+    <div class="card card-sm">
+      <div class="kpi-label">Receita · Mês Atual</div>
+      <div class="kpi-val acc">${R(rev)}</div>
+      <div class="kpi-sub">Inclui pró-labore</div>
+    </div>
+    <div class="card card-sm">
+      <div class="kpi-label">Gastos · Mês Atual</div>
+      <div class="kpi-val bad">${R(exp)}</div>
+    </div>
+    <div class="card card-sm">
+      <div class="kpi-label">Saldo do Mês</div>
+      <div class="kpi-val ${bal>=0?'ok':'bad'}">${R(bal)}</div>
+    </div>
+  `;
+
+  const list = (filters.pf==='todos'?S.pf:S.pf.filter(t=>t.type===filters.pf))
+    .slice().sort((a,b)=>new Date(b.date)-new Date(a.date));
+
+  document.getElementById('pf-table').innerHTML = list.length ?
+    `<table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Tipo</th><th style="text-align:right">Valor</th><th></th></tr></thead><tbody>
+    ${list.map(t=>`<tr>
+      <td class="dim">${new Date(t.date+'T12:00:00').toLocaleDateString('pt-BR')}</td>
+      <td>${t.desc}</td>
+      <td><span class="badge b-${t.type}">${t.cat}</span></td>
+      <td><span class="badge b-${t.type}">${t.type==='receita'?'▲ Receita':'▼ Despesa'}</span></td>
+      <td style="text-align:right" class="${t.type==='receita'?'pos':'neg'}">${t.type==='receita'?'+':'-'}${R(t.val)}</td>
+      <td><button class="btn-danger-sm" onclick="delPFTx('${t.id}')">✕</button></td>
+    </tr>`).join('')}
+    </tbody></table>` :
+    `<div class="empty"><div class="empty-icon">💳</div><div class="empty-text">Nenhum lançamento pessoal${filters.pf!=='todos'?' nesta categoria':''}.<br>Clique em "+ Lançamento" para adicionar.</div></div>`;
+}
+
+/* ── Projeções ────────────────────────────────────────────── */
+function renderProj() {
+  const mrr = S.clients.filter(c=>c.active&&c.type==='mensal').reduce((s,c)=>s+c.val,0);
+  const months = last6();
+  const avgExp = (() => {
+    const tot = months.reduce((s,m)=>s+S.pj.filter(t=>t.type==='despesa'&&mkey(t.date)===m.key).reduce((ss,t)=>ss+t.val,0),0);
+    const active = months.filter(m=>S.pj.some(t=>mkey(t.date)===m.key)).length;
+    return active>0?tot/active:0;
+  })();
+  const projProfit = mrr*(1-S.cfg.tax/100)-avgExp;
+  const annual = mrr*12;
+
+  document.getElementById('proj-kpis').innerHTML = `
+    <div class="card card-sm">
+      <div class="kpi-label">MRR Atual</div>
+      <div class="kpi-val acc">${R(mrr)}</div>
+      <div class="kpi-sub">Contratos mensais ativos</div>
+    </div>
+    <div class="card card-sm">
+      <div class="kpi-label">Projeção Anual</div>
+      <div class="kpi-val">${R(annual)}</div>
+      <div class="kpi-sub">Baseado no MRR atual</div>
+    </div>
+    <div class="card card-sm">
+      <div class="kpi-label">Lucro Projetado / Mês</div>
+      <div class="kpi-val ${projProfit>=0?'ok':'bad'}">${R(projProfit)}</div>
+      <div class="kpi-sub">Após impostos e despesas médias</div>
+    </div>
+  `;
+
+  const histRev = months.map(m=>S.pj.filter(t=>t.type==='receita'&&mkey(t.date)===m.key).reduce((s,t)=>s+t.val,0));
+  const fut = next6();
+  const allLabels = [...months.map(m=>m.lbl), ...fut];
+
+  if(CHS.proj) CHS.proj.destroy();
+  const c1=document.getElementById('ch-proj');
+  if(c1) CHS.proj = new Chart(c1,{
+    type:'line',
+    data:{ labels:allLabels, datasets:[
+      { label:'Receita Real', data:[...histRev,...Array(6).fill(null)], borderColor:'#d4f53c', backgroundColor:'rgba(212,245,60,.08)', fill:true, tension:0.4, pointBackgroundColor:'#d4f53c', pointRadius:4 },
+      { label:'MRR Projetado', data:[...Array(6).fill(null),...Array(6).fill(mrr)], borderColor:'#3cffa8', borderDash:[5,3], backgroundColor:'rgba(60,255,168,.05)', fill:true, tension:0.4, pointBackgroundColor:'#3cffa8', pointRadius:4 }
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{ color:'#72728a', font:{size:11}, boxWidth:10 } } },
+      scales:{
+        x:{ grid:{color:'rgba(255,255,255,.04)'}, ticks:{color:'#72728a',font:{size:11}} },
+        y:{ grid:{color:'rgba(255,255,255,.04)'}, ticks:{color:'#72728a',font:{size:11},callback:v=>'R$'+(v/1000).toFixed(1)+'k'} }
+      }
+    }
+  });
+
+  if(CHS.projP) CHS.projP.destroy();
+  const c2=document.getElementById('ch-proj-profit');
+  if(c2) CHS.projP = new Chart(c2,{
+    type:'bar',
+    data:{ labels:fut, datasets:[{
+      label:'Lucro Projetado',
+      data:Array(6).fill(projProfit),
+      backgroundColor:projProfit>=0?'rgba(60,255,168,.55)':'rgba(255,79,106,.55)',
+      borderRadius:5, borderSkipped:false
+    }]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{ color:'#72728a', font:{size:11}, boxWidth:10 } } },
+      scales:{
+        x:{ grid:{color:'rgba(255,255,255,.04)'}, ticks:{color:'#72728a',font:{size:11}} },
+        y:{ grid:{color:'rgba(255,255,255,.04)'}, ticks:{color:'#72728a',font:{size:11},callback:v=>'R$'+(v/1000).toFixed(1)+'k'} }
+      }
+    }
+  });
+}
+
+/* ── Config ───────────────────────────────────────────────── */
+function renderConfig() {
+  document.getElementById('cfg-tax').value    = S.cfg.tax;
+  document.getElementById('cfg-pl').value     = S.cfg.proLabore;
+  document.getElementById('cfg-res-pj').value = S.cfg.resPJ||0;
+  document.getElementById('cfg-res-pf').value = S.cfg.resPF||0;
+}
+
+async function saveConfig() {
+  S.cfg.tax      = parseFloat(document.getElementById('cfg-tax').value)||6;
+  S.cfg.proLabore= parseFloat(document.getElementById('cfg-pl').value)||0;
+  S.cfg.resPJ    = parseFloat(document.getElementById('cfg-res-pj').value)||0;
+  S.cfg.resPF    = parseFloat(document.getElementById('cfg-res-pf').value)||0;
+  await persist('cfg');
+  toast('✓ Configurações salvas');
+}
+
+/* ── Modals ───────────────────────────────────────────────── */
+function openModal(name) {
+  if(name==='cli') {
+    document.getElementById('cli-id').value='';
+    document.getElementById('cli-name').value='';
+    document.getElementById('cli-type').value='mensal';
+    document.getElementById('cli-value').value='';
+    document.getElementById('cli-status').value='ativo';
+    document.getElementById('cli-notes').value='';
+    document.getElementById('cli-modal-title').textContent='Novo Cliente';
+  }
+  if(name==='pj-tx') {
+    document.getElementById('pj-date').value=td();
+    document.getElementById('pj-desc').value='';
+    document.getElementById('pj-val').value='';
+    document.getElementById('pj-type').value='receita';
+    fillPJCats();
+    const sel=document.getElementById('pj-cli');
+    sel.innerHTML='<option value="">— Nenhum —</option>'+
+      S.clients.filter(c=>c.active).map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  }
+  if(name==='pf-tx') {
+    document.getElementById('pf-date').value=td();
+    document.getElementById('pf-desc').value='';
+    document.getElementById('pf-val').value='';
+    document.getElementById('pf-type').value='receita';
+    fillPFCats();
+  }
+  if(name==='bill') {
+    document.getElementById('bill-id').value='';
+    document.getElementById('bill-desc').value='';
+    document.getElementById('bill-val').value='';
+    document.getElementById('bill-due').value=td();
+    document.getElementById('bill-module').value='pj';
+    document.getElementById('bill-notes').value='';
+    document.getElementById('bill-modal-title').textContent='Nova Conta a Pagar';
+    fillBillCats();
+    selectRec('unica');
+  }
+  if(name==='export') {
+    selectExpType('completo');
+    document.getElementById('exp-cli').checked = true;
+  }
+  document.getElementById('overlay-'+name).classList.add('open');
+}
+
+function closeModal(name) {
+  document.getElementById('overlay-'+name).classList.remove('open');
+}
+
+function fillPJCats() {
+  const t=document.getElementById('pj-type').value;
+  document.getElementById('pj-cat').innerHTML=CATS.pj[t].map(c=>`<option>${c}</option>`).join('');
+}
+
+function fillPFCats() {
+  const t=document.getElementById('pf-type').value;
+  document.getElementById('pf-cat').innerHTML=CATS.pf[t].map(c=>`<option>${c}</option>`).join('');
+}
+
+/* ── CRUD ─────────────────────────────────────────────────── */
+async function saveCliente() {
+  const id  = document.getElementById('cli-id').value || uid();
+  const name= document.getElementById('cli-name').value.trim();
+  if(!name){ toast('Informe o nome do cliente','warn'); return; }
+  const cli = {
+    id, name,
+    type:   document.getElementById('cli-type').value,
+    val:    parseFloat(document.getElementById('cli-value').value)||0,
+    active: document.getElementById('cli-status').value==='ativo',
+    notes:  document.getElementById('cli-notes').value
+  };
+  const idx=S.clients.findIndex(c=>c.id===id);
+  if(idx>=0) S.clients[idx]=cli; else S.clients.push(cli);
+  await persist('clients');
+  closeModal('cli'); renderCli(); toast('✓ Cliente salvo');
+}
+
+function editCli(id) {
+  const c=S.clients.find(x=>x.id===id); if(!c)return;
+  document.getElementById('cli-id').value=c.id;
+  document.getElementById('cli-name').value=c.name;
+  document.getElementById('cli-type').value=c.type;
+  document.getElementById('cli-value').value=c.val;
+  document.getElementById('cli-status').value=c.active?'ativo':'inativo';
+  document.getElementById('cli-notes').value=c.notes||'';
+  document.getElementById('cli-modal-title').textContent='Editar Cliente';
+  document.getElementById('overlay-cli').classList.add('open');
+}
+
+async function delCli(id) {
+  if(!confirm('Remover este cliente?')) return;
+  S.clients=S.clients.filter(c=>c.id!==id);
+  await persist('clients'); renderCli(); toast('✓ Cliente removido');
+}
+
+async function savePJTx() {
+  const desc=document.getElementById('pj-desc').value.trim();
+  const val=parseFloat(document.getElementById('pj-val').value);
+  if(!desc||!val){ toast('Preencha descrição e valor','warn'); return; }
+  S.pj.push({
+    id:uid(),
+    date:document.getElementById('pj-date').value,
+    type:document.getElementById('pj-type').value,
+    desc, cat:document.getElementById('pj-cat').value,
+    val, cliId:document.getElementById('pj-cli').value||null
+  });
+  await persist('pj'); closeModal('pj-tx'); renderPJ(); toast('✓ Lançamento salvo');
+}
+
+async function delPJTx(id) {
+  if(!confirm('Remover este lançamento?')) return;
+  S.pj=S.pj.filter(t=>t.id!==id);
+  await persist('pj'); renderPJ(); toast('✓ Removido');
+}
+
+async function savePFTx() {
+  const desc=document.getElementById('pf-desc').value.trim();
+  const val=parseFloat(document.getElementById('pf-val').value);
+  if(!desc||!val){ toast('Preencha descrição e valor','warn'); return; }
+  S.pf.push({
+    id:uid(),
+    date:document.getElementById('pf-date').value,
+    type:document.getElementById('pf-type').value,
+    desc, cat:document.getElementById('pf-cat').value, val
+  });
+  await persist('pf'); closeModal('pf-tx'); renderPF(); toast('✓ Lançamento salvo');
+}
+
+async function delPFTx(id) {
+  if(!confirm('Remover este lançamento?')) return;
+  S.pf=S.pf.filter(t=>t.id!==id);
+  await persist('pf'); renderPF(); toast('✓ Removido');
+}
+
+function tabSwitch(mod, f, btn) {
+  filters[mod]=f;
+  btn.closest('.tabs').querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  if(mod==='pj') renderPJ();
+  else if(mod==='pf') renderPF();
+  else if(mod==='bills') renderBills();
+}
+
+/* ── Close on overlay click ───────────────────────────────── */
+document.querySelectorAll('.overlay').forEach(o=>{
+  o.addEventListener('click', e=>{
+    if(e.target===o) closeModal(o.id.replace('overlay-',''));
+  });
+});
+
+/* ── Contas a Pagar ───────────────────────────────────────── */
+let billRec = 'unica';
+
+function selectRec(val) {
+  billRec = val;
+  document.querySelectorAll('[data-rec]').forEach(b => {
+    b.classList.toggle('active', b.dataset.rec === val);
+  });
+}
+
+function fillBillCats() {
+  const mod = document.getElementById('bill-module').value;
+  const cats = mod === 'pj' ? CATS.pj.despesa : CATS.pf.despesa;
+  document.getElementById('bill-cat').innerHTML = cats.map(c=>`<option>${c}</option>`).join('');
+}
+
+function renderBills() {
+  const today_d = new Date(td()+'T00:00:00');
+  const next7   = new Date(today_d); next7.setDate(next7.getDate()+7);
+
+  const all = S.bills.map(b=>({...b, _status: billStatus(b)}));
+
+  const vencidas  = all.filter(b=>b._status==='vencida');
+  const pendentes = all.filter(b=>b._status==='pendente');
+  const pagas     = all.filter(b=>b._status==='pago');
+  const a7dias    = pendentes.filter(b=>new Date(b.due+'T12:00:00')<=next7);
+
+  const totalPendente = pendentes.reduce((s,b)=>s+b.val,0);
+  const totalVencida  = vencidas.reduce((s,b)=>s+b.val,0);
+  const totalPago     = pagas.filter(b=>b.paidAt&&mkey(b.paidAt)===curMonth()).reduce((s,b)=>s+b.val,0);
+
+  document.getElementById('bills-kpis').innerHTML = `
+    <div class="card card-sm" style="${vencidas.length?'border-color:rgba(255,79,106,.35)':''}">
+      <div class="kpi-icon" style="background:rgba(255,79,106,.1)">⚠</div>
+      <div class="kpi-label">Vencidas</div>
+      <div class="kpi-val bad">${R(totalVencida)}</div>
+      <div class="kpi-sub">${vencidas.length} conta${vencidas.length!==1?'s':''}</div>
+    </div>
+    <div class="card card-sm">
+      <div class="kpi-icon" style="background:rgba(255,184,79,.1)">⏳</div>
+      <div class="kpi-label">Pendentes</div>
+      <div class="kpi-val warn">${R(totalPendente)}</div>
+      <div class="kpi-sub">${pendentes.length} conta${pendentes.length!==1?'s':''}</div>
+    </div>
+    <div class="card card-sm">
+      <div class="kpi-icon" style="background:rgba(212,245,60,.1)">📆</div>
+      <div class="kpi-label">Vencem em 7 dias</div>
+      <div class="kpi-val ${a7dias.length?'warn':''}">${a7dias.length}</div>
+      <div class="kpi-sub">${a7dias.length?a7dias.map(b=>b.desc).slice(0,2).join(', ')+(a7dias.length>2?'...':''):'Nenhuma'}</div>
+    </div>
+    <div class="card card-sm">
+      <div class="kpi-icon" style="background:rgba(60,255,168,.1)">✓</div>
+      <div class="kpi-label">Pago · Mês Atual</div>
+      <div class="kpi-val ok">${R(totalPago)}</div>
+      <div class="kpi-sub">${pagas.length} conta${pagas.length!==1?'s':''} quitada${pagas.length!==1?'s':''}</div>
+    </div>
+  `;
+
+  let list = all;
+  const f = filters.bills;
+  if(f==='pendente') list = all.filter(b=>b._status==='pendente');
+  else if(f==='vencida') list = all.filter(b=>b._status==='vencida');
+  else if(f==='pago') list = all.filter(b=>b._status==='pago');
+
+  // Sort: vencidas first, then by due date
+  list.sort((a,b) => {
+    const order = {vencida:0,pendente:1,pago:2};
+    if(order[a._status]!==order[b._status]) return order[a._status]-order[b._status];
+    return new Date(a.due)-new Date(b.due);
+  });
+
+  const recLabel = { unica:'Única', mensal:'↻ Mensal', anual:'📅 Anual' };
+  const modLabel = { pj:'PJ', pf:'PF' };
+  const statusStyle = {
+    pendente: 'background:rgba(255,184,79,.12);color:var(--warning)',
+    vencida:  'background:rgba(255,79,106,.12);color:var(--danger)',
+    pago:     'background:rgba(60,255,168,.12);color:var(--success)'
+  };
+  const statusLabel = { pendente:'Pendente', vencida:'Vencida', pago:'Paga' };
+
+  document.getElementById('bills-table').innerHTML = list.length ? `
+    <table>
+      <thead><tr>
+        <th>Descrição</th><th>Vencimento</th><th>Módulo</th>
+        <th>Recorrência</th><th>Categoria</th><th>Status</th>
+        <th style="text-align:right">Valor</th><th></th>
+      </tr></thead>
+      <tbody>
+        ${list.map(b=>`<tr>
+          <td>
+            <strong>${b.desc}</strong>
+            ${b.notes?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${b.notes}</div>`:''}
+          </td>
+          <td class="${b._status==='vencida'?'neg':'dim'}" style="white-space:nowrap">
+            ${new Date(b.due+'T12:00:00').toLocaleDateString('pt-BR')}
+            ${b._status==='vencida'?` <span style="font-size:10px">(atrasada)</span>`:''}
+          </td>
+          <td><span class="badge b-${b.module==='pj'?'mensal':'pontual'}">${modLabel[b.module]}</span></td>
+          <td class="dim" style="font-size:12px">${recLabel[b.rec]||b.rec}</td>
+          <td class="dim" style="font-size:12px">${b.cat}</td>
+          <td><span class="badge" style="${statusStyle[b._status]}">${statusLabel[b._status]}</span></td>
+          <td style="text-align:right;font-weight:600" class="${b._status==='pago'?'dim':'neg'}">${R(b.val)}</td>
+          <td>
+            <div style="display:flex;gap:5px;justify-content:flex-end">
+              ${b._status!=='pago'?`<button class="btn-edit-sm" style="color:var(--success);border-color:rgba(60,255,168,.3)" onclick="openPayModal('${b.id}')">✓ Pagar</button>`:''}
+              <button class="btn-edit-sm" onclick="editBill('${b.id}')">Editar</button>
+              <button class="btn-danger-sm" onclick="delBill('${b.id}')">✕</button>
+            </div>
+          </td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  ` : `<div class="empty"><div class="empty-icon">◫</div><div class="empty-text">Nenhuma conta${f!=='todas'?' nesta categoria':''}.<br>Clique em "+ Nova Conta" para adicionar.</div></div>`;
+}
+
+async function saveBill() {
+  const desc = document.getElementById('bill-desc').value.trim();
+  const val  = parseFloat(document.getElementById('bill-val').value);
+  const due  = document.getElementById('bill-due').value;
+  if(!desc||!val||!due){ toast('Preencha descrição, valor e vencimento','warn'); return; }
+
+  const id = document.getElementById('bill-id').value || uid();
+  const bill = {
+    id, desc, val, due,
+    module: document.getElementById('bill-module').value,
+    cat:    document.getElementById('bill-cat').value,
+    rec:    billRec,
+    notes:  document.getElementById('bill-notes').value,
+    status: 'pendente',
+    paidAt: null
+  };
+
+  const existing = S.bills.find(b=>b.id===id);
+  if(existing) {
+    bill.status = existing.status;
+    bill.paidAt = existing.paidAt;
+    const idx = S.bills.findIndex(b=>b.id===id);
+    S.bills[idx] = bill;
+  } else {
+    S.bills.push(bill);
+  }
+
+  await persist('bills');
+  closeModal('bill');
+  renderBills();
+  toast('✓ Conta salva');
+}
+
+function editBill(id) {
+  const b = S.bills.find(x=>x.id===id); if(!b)return;
+  document.getElementById('bill-id').value   = b.id;
+  document.getElementById('bill-desc').value = b.desc;
+  document.getElementById('bill-val').value  = b.val;
+  document.getElementById('bill-due').value  = b.due;
+  document.getElementById('bill-module').value = b.module;
+  document.getElementById('bill-notes').value  = b.notes||'';
+  fillBillCats();
+  document.getElementById('bill-cat').value = b.cat;
+  selectRec(b.rec||'unica');
+  document.getElementById('bill-modal-title').textContent = 'Editar Conta';
+  document.getElementById('overlay-bill').classList.add('open');
+}
+
+async function delBill(id) {
+  if(!confirm('Remover esta conta?')) return;
+  S.bills = S.bills.filter(b=>b.id!==id);
+  await persist('bills');
+  renderBills();
+  toast('✓ Conta removida');
+}
+
+function openPayModal(id) {
+  const b = S.bills.find(x=>x.id===id); if(!b)return;
+  document.getElementById('pay-bill-id').value = id;
+  document.getElementById('pay-date').value = td();
+  document.getElementById('pay-launch').checked = true;
+  document.getElementById('pay-summary').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-weight:600;font-size:13px">${b.desc}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:3px">
+          ${b.module==='pj'?'ATLAS Lab · PJ':'Pessoal · PF'} · ${b.cat}
+        </div>
+      </div>
+      <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:var(--accent)">${R(b.val)}</div>
+    </div>
+  `;
+  document.getElementById('overlay-pay').classList.add('open');
+}
+
+async function confirmPay() {
+  const id      = document.getElementById('pay-bill-id').value;
+  const date    = document.getElementById('pay-date').value;
+  const launch  = document.getElementById('pay-launch').checked;
+  const b = S.bills.find(x=>x.id===id); if(!b)return;
+
+  // Mark as paid
+  const idx = S.bills.findIndex(x=>x.id===id);
+  S.bills[idx] = {...b, status:'pago', paidAt: date};
+  await persist('bills');
+
+  // Auto-launch transaction
+  if(launch) {
+    const tx = {
+      id: uid(), date, type:'despesa',
+      desc: b.desc, cat: b.cat, val: b.val,
+      ...(b.module==='pj' ? {cliId:null} : {})
+    };
+    if(b.module==='pj') { S.pj.push(tx); await persist('pj'); }
+    else { S.pf.push(tx); await persist('pf'); }
+  }
+
+  // If monthly, create next occurrence
+  if(b.rec==='mensal') {
+    const nextDue = new Date(b.due+'T12:00:00');
+    nextDue.setMonth(nextDue.getMonth()+1);
+    S.bills.push({
+      ...b, id:uid(),
+      due: nextDue.toISOString().slice(0,10),
+      status:'pendente', paidAt:null
+    });
+    await persist('bills');
+  }
+
+  closeModal('pay');
+  renderBills();
+  toast(`✓ Pagamento registrado${launch?' e lançado':''}${b.rec==='mensal'?' · Próxima parcela gerada':''}`);
+}
+
+/* ── Backup ───────────────────────────────────────────────── */
+const BACKUP_VERSION = 1;
+
+function renderBackup() {
+  document.getElementById('bk-count-cli').textContent   = S.clients.length;
+  document.getElementById('bk-count-pj').textContent    = S.pj.length;
+  document.getElementById('bk-count-pf').textContent    = S.pf.length;
+  document.getElementById('bk-count-bills').textContent = S.bills.length;
+
+  const lastBk  = S.cfg.lastBackup;
+  const history = S.cfg.backupHistory || [];
+  const daysSince = lastBk ? Math.floor((Date.now()-new Date(lastBk))/86400000) : null;
+
+  document.getElementById('backup-kpis').innerHTML = `
+    <div class="card card-sm">
+      <div class="kpi-icon" style="background:rgba(212,245,60,.1)">💾</div>
+      <div class="kpi-label">Último Backup</div>
+      <div class="kpi-val ${!lastBk||daysSince>7?'bad':'ok'}" style="font-size:16px">
+        ${lastBk ? new Date(lastBk).toLocaleDateString('pt-BR') : 'Nunca'}
+      </div>
+      <div class="kpi-sub">${daysSince!==null?`há ${daysSince} dia${daysSince!==1?'s':''}`:'Faça seu primeiro backup'}</div>
+    </div>
+    <div class="card card-sm">
+      <div class="kpi-icon" style="background:rgba(155,141,255,.1)">📊</div>
+      <div class="kpi-label">Total de Registros</div>
+      <div class="kpi-val pur">${S.clients.length+S.pj.length+S.pf.length+S.bills.length}</div>
+      <div class="kpi-sub">Em todos os módulos</div>
+    </div>
+    <div class="card card-sm">
+      <div class="kpi-icon" style="background:rgba(60,255,168,.1)">📋</div>
+      <div class="kpi-label">Backups Realizados</div>
+      <div class="kpi-val ok">${history.length}</div>
+      <div class="kpi-sub">Histórico completo</div>
+    </div>
+  `;
+
+  const hEl = document.getElementById('backup-history');
+  if(!history.length) {
+    hEl.innerHTML=`<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Nenhum backup realizado ainda.<br>Exporte seu primeiro backup agora.</div></div>`;
+    return;
+  }
+  hEl.innerHTML=`
+    <table>
+      <thead><tr><th>Data e Hora</th><th>Registros</th><th>Versão</th><th>Arquivo</th></tr></thead>
+      <tbody>
+        ${[...history].reverse().map(h=>`<tr>
+          <td>${new Date(h.date).toLocaleString('pt-BR')}</td>
+          <td class="dim">${h.total} registros</td>
+          <td class="dim">v${h.version||1}</td>
+          <td class="dim" style="font-size:11px">${h.filename}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+async function exportBackup() {
+  const now     = new Date();
+  const dateStr = now.toISOString().slice(0,10);
+  const filename= `atlas-backup-${dateStr}.json`;
+  const total   = S.clients.length+S.pj.length+S.pf.length+S.bills.length;
+
+  const payload = {
+    _meta:{ version:BACKUP_VERSION, app:'Atlas Lab · Financeiro', exportedAt:now.toISOString(), total },
+    clients:S.clients, pj:S.pj, pf:S.pf, bills:S.bills, cfg:S.cfg
+  };
+
+  const blob = new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href=url; a.download=filename; a.click();
+  URL.revokeObjectURL(url);
+
+  S.cfg.lastBackup = now.toISOString();
+  if(!S.cfg.backupHistory) S.cfg.backupHistory=[];
+  S.cfg.backupHistory.push({date:now.toISOString(),total,filename,version:BACKUP_VERSION});
+  if(S.cfg.backupHistory.length>20) S.cfg.backupHistory=S.cfg.backupHistory.slice(-20);
+  await persist('cfg');
+
+  const banner=document.getElementById('backup-banner');
+  if(banner) banner.style.display='none';
+  toast(`✓ Backup exportado — ${filename}`);
+  if(document.getElementById('view-backup').classList.contains('active')) renderBackup();
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('import-drop').style.borderColor='var(--border)';
+  const file=e.dataTransfer.files[0];
+  if(file) processImportFile(file);
+}
+
+function importBackup(input) {
+  const file=input.files[0];
+  if(file) processImportFile(file);
+  input.value='';
+}
+
+function processImportFile(file) {
+  if(!file.name.endsWith('.json')){ toast('Selecione um arquivo .json válido','warn'); return; }
+  const reader=new FileReader();
+  reader.onload=(e)=>{
+    try {
+      const data=JSON.parse(e.target.result);
+      if(!data._meta||!data.clients){ toast('Arquivo inválido — não é um backup Atlas Lab','warn'); return; }
+      const total=(data.clients?.length||0)+(data.pj?.length||0)+(data.pf?.length||0)+(data.bills?.length||0);
+      document.getElementById('import-preview-date').textContent  = new Date(data._meta.exportedAt).toLocaleString('pt-BR');
+      document.getElementById('import-preview-total').textContent = total+' registros';
+      document.getElementById('import-preview-cli').textContent   = data.clients?.length||0;
+      document.getElementById('import-preview-pj').textContent    = data.pj?.length||0;
+      document.getElementById('import-preview-pf').textContent    = data.pf?.length||0;
+      document.getElementById('import-preview-bills').textContent = data.bills?.length||0;
+      window._importData=data;
+      document.getElementById('overlay-import').classList.add('open');
+    } catch(err){ toast('Erro ao ler o arquivo. Verifique se é um backup válido.','warn'); }
+  };
+  reader.readAsText(file);
+}
+
+async function confirmImport() {
+  const data=window._importData; if(!data) return;
+  const currentHistory=S.cfg.backupHistory||[];
+  S.clients=data.clients||[]; S.pj=data.pj||[]; S.pf=data.pf||[]; S.bills=data.bills||[];
+  S.cfg={...data.cfg, backupHistory:currentHistory};
+  for(const k of ['clients','pj','pf','bills','cfg']) await persist(k);
+  closeModal('import'); window._importData=null;
+  toast('✓ Dados restaurados com sucesso');
+  renderDash();
+}
+
+async function checkBackupReminder() {
+  const lastBk=S.cfg.lastBackup;
+  const banner=document.getElementById('backup-banner');
+  if(!banner) return;
+  if(!lastBk){
+    document.getElementById('backup-banner-msg').textContent='Você ainda não fez nenhum backup — proteja seus dados';
+    banner.style.display='flex'; return;
+  }
+  const days=Math.floor((Date.now()-new Date(lastBk))/86400000);
+  if(days>=7){
+    document.getElementById('backup-banner-msg').textContent=`Último backup há ${days} dias — recomendamos fazer um novo`;
+    banner.style.display='flex';
+  } else {
+    banner.style.display='none';
+  }
+}
+
+let expType = 'completo';
+
+function selectExpType(val) {
+  expType = val;
+  document.querySelectorAll('.exp-type-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.val === val);
+  });
+  // Show/hide client checkbox only when PJ or completo
+  const cliWrap = document.getElementById('exp-cli-wrap');
+  cliWrap.style.display = val === 'pf' ? 'none' : 'block';
+}
+
+function initExportModal() {
+  const now = new Date();
+  const ySel = document.getElementById('exp-year');
+  ySel.innerHTML = '';
+  for (let y = now.getFullYear(); y >= now.getFullYear() - 3; y--) {
+    ySel.innerHTML += `<option value="${y}">${y}</option>`;
+  }
+  document.getElementById('exp-month').value = now.getMonth() + 1;
+  expType = 'completo';
+}
+
+function exportReport() {
+  const year  = parseInt(document.getElementById('exp-year').value);
+  const month = parseInt(document.getElementById('exp-month').value);
+  const incCli = document.getElementById('exp-cli').checked;
+  const opts = {
+    incPJ:  expType === 'completo' || expType === 'pj',
+    incPF:  expType === 'completo' || expType === 'pf',
+    incCli: incCli && expType !== 'pf'
+  };
+  const html = buildReportHTML(year, month, opts);
+  const win  = window.open('', '_blank');
+  if (!win) { toast('Permita pop-ups para exportar', 'warn'); return; }
+  win.document.write(html);
+  win.document.close();
+  closeModal('export');
+  toast('✓ Relatório gerado — use Ctrl+P para salvar como PDF');
+}
+
+function buildReportHTML(year, month, opts) {
+  const mKey = `${year}-${String(month).padStart(2,'0')}`;
+  const monthName = new Date(year, month-1, 1)
+    .toLocaleDateString('pt-BR', { month:'long', year:'numeric' });
+
+  const pjTxs = S.pj.filter(t => mkey(t.date) === mKey)
+    .sort((a,b) => new Date(a.date)-new Date(b.date));
+  const pfTxs = S.pf.filter(t => mkey(t.date) === mKey)
+    .sort((a,b) => new Date(a.date)-new Date(b.date));
+
+  const pjRev = pjTxs.filter(t=>t.type==='receita').reduce((s,t)=>s+t.val,0);
+  const pjExp = pjTxs.filter(t=>t.type==='despesa').reduce((s,t)=>s+t.val,0);
+  const tax   = pjRev * (S.cfg.tax/100);
+  const net   = pjRev - pjExp - tax;
+
+  const pfRev = pfTxs.filter(t=>t.type==='receita').reduce((s,t)=>s+t.val,0);
+  const pfExp = pfTxs.filter(t=>t.type==='despesa').reduce((s,t)=>s+t.val,0);
+  const pfBal = pfRev - pfExp;
+
+  const mrr    = S.clients.filter(c=>c.active&&c.type==='mensal').reduce((s,c)=>s+c.val,0);
+  const active = S.clients.filter(c=>c.active);
+
+  const fmtDate = d => new Date(d+'T12:00:00').toLocaleDateString('pt-BR');
+  const reportTitle = opts.incPJ && opts.incPF ? 'Relatório Financeiro'
+    : opts.incPJ ? 'Relatório · ATLAS Lab (PJ)'
+    : 'Relatório · Pessoal (PF)';
+  const today   = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+
+  const kpiBox = (label, val, cls='') =>
+    `<div class="kpi"><div class="kl">${label}</div><div class="kv ${cls}">${R(val)}</div></div>`;
+
+  const txRow = (t, clients=[]) => {
+    const cli = clients.find(c=>c.id===t.cliId);
+    return `<tr>
+      <td class="d">${fmtDate(t.date)}</td>
+      <td>${t.desc}${cli?` <span class="cli-tag">${cli.name}</span>`:''}</td>
+      <td>${t.cat}</td>
+      <td><span class="badge b-${t.type}">${t.type==='receita'?'Receita':'Despesa'}</span></td>
+      <td class="tr ${t.type==='receita'?'pos':'neg'}">${t.type==='receita'?'+':'-'}${R(t.val)}</td>
+    </tr>`;
+  };
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Atlas Lab · Relatório ${monthName}</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;color:#1a1a2e;background:#fff}
+
+  /* Header */
+  .hdr{background:#07070e;padding:22px 32px;display:flex;justify-content:space-between;align-items:flex-start}
+  .logo{font-size:20px;font-weight:800;letter-spacing:-0.5px;color:#fff}
+  .logo .a{color:#d4f53c}
+  .logo-sub{color:#5a5a78;font-size:9px;margin-top:3px;letter-spacing:1px;text-transform:uppercase}
+  .ri{text-align:right}
+  .ri h1{font-size:15px;font-weight:700;color:#fff}
+  .ri .period{color:#72728a;font-size:10px;margin-top:3px}
+  .ri .gen{color:#4a4a62;font-size:9px;margin-top:2px}
+  .accent-bar{height:3px;background:#d4f53c}
+
+  /* Content */
+  .body{padding:22px 32px}
+  h2{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;
+     color:#6060808;border-bottom:1px solid #eaeaf4;padding-bottom:6px;margin:20px 0 12px;color:#7070908}
+  h2:first-child{margin-top:0}
+
+  /* KPI */
+  .kgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px}
+  .kpi{background:#f8f8fc;border:1px solid #eaeaf4;border-radius:8px;padding:11px 13px}
+  .kl{font-size:8px;text-transform:uppercase;letter-spacing:0.5px;color:#8888a8;margin-bottom:5px;font-weight:600}
+  .kv{font-size:15px;font-weight:800;color:#0a0a1a}
+  .kv.pos{color:#00a86b}
+  .kv.neg{color:#cc2244}
+  .kv.warn{color:#c07000}
+
+  /* Table */
+  table{width:100%;border-collapse:collapse;font-size:10px}
+  th{text-align:left;padding:6px 10px;background:#f2f2f8;font-size:9px;
+     text-transform:uppercase;letter-spacing:0.4px;color:#7878988;font-weight:700;
+     border-bottom:1px solid #e0e0ee}
+  td{padding:7px 10px;border-bottom:1px solid #f0f0f8;vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:#fafafe}
+  .d{color:#9090a8}
+  .tr{text-align:right;font-weight:600}
+  .pos{color:#00a86b}
+  .neg{color:#cc2244}
+  .cli-tag{display:inline-block;background:#eeeeff;color:#5050c8;
+           padding:1px 6px;border-radius:10px;font-size:8px;margin-left:4px}
+
+  /* Badge */
+  .badge{display:inline-block;padding:2px 7px;border-radius:20px;
+         font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px}
+  .b-receita{background:#e8fff5;color:#008050}
+  .b-despesa{background:#fff0f3;color:#c02040}
+  .b-mensal{background:#f0f8e0;color:#608000}
+  .b-pontual{background:#ece8ff;color:#6040c0}
+  .b-ativo{background:#e8fff5;color:#008050}
+  .b-inativo{background:#f0f0f8;color:#8080a8}
+
+  /* Totals */
+  .tot-row td{font-weight:700;background:#f4f4fc;border-top:2px solid #e0e0ee!important}
+  .sum-bar{display:flex;justify-content:flex-end;gap:22px;margin-top:8px;
+           padding:9px 12px;background:#f8f8fc;border-radius:6px;border:1px solid #eaeaf4}
+  .si .sl{font-size:8px;color:#9090a8;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:2px}
+  .si .sv{font-size:12px;font-weight:800}
+  .si{text-align:right}
+
+  /* Empty */
+  .empty{color:#9090b0;font-style:italic;padding:14px 10px;font-size:10px}
+
+  /* Footer */
+  .ftr{margin-top:28px;padding:11px 32px;background:#f8f8fc;
+       border-top:1px solid #eaeaf4;display:flex;justify-content:space-between;align-items:center}
+  .fl{font-size:11px;font-weight:700;color:#07070e}
+  .fl .a{color:#7aaa00}
+  .fr2{font-size:9px;color:#9090a8}
+  .pg{font-size:8px;color:#b0b0c8;text-align:center;margin-top:4px}
+
+  @media print{
+    body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .no-print{display:none}
+  }
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div>
+    <div class="logo">Atlas<span class="a">*</span>Lab<span class="a">*</span></div>
+    <div class="logo-sub">Gestão Financeira</div>
+  </div>
+  <div class="ri">
+    <h1>${reportTitle}</h1>
+    <div class="period">${monthName.charAt(0).toUpperCase()+monthName.slice(1)}</div>
+    <div class="gen">Gerado em ${today}</div>
+  </div>
+</div>
+<div class="accent-bar"></div>
+
+<div class="body">
+
+  <h2>Resumo Executivo</h2>
+  ${opts.incPJ ? `
+  <div class="kgrid">
+    ${kpiBox('Receita PJ', pjRev)}
+    ${kpiBox('Despesas PJ', pjExp, 'neg')}
+    ${kpiBox('Impostos Est. ('+S.cfg.tax+'%)', tax, 'warn')}
+    ${kpiBox('Lucro Líquido', net, net>=0?'pos':'neg')}
+  </div>` : ''}
+  ${opts.incPJ && opts.incPF ? `<div style="height:10px"></div>` : ''}
+  ${opts.incPF ? `
+  <div class="kgrid">
+    ${opts.incPJ ? kpiBox('MRR Recorrente', mrr) : kpiBox('Pró-labore', S.cfg.proLabore)}
+    ${opts.incPJ ? kpiBox('Pró-labore', S.cfg.proLabore) : ''}
+    ${kpiBox('Receita Pessoal', pfRev)}
+    ${kpiBox('Gastos Pessoais', pfExp, 'neg')}
+    ${kpiBox('Saldo Pessoal', pfBal, pfBal>=0?'pos':'neg')}
+  </div>` : ''}
+
+  ${opts.incCli && active.length ? `
+  <h2>Clientes Ativos — ${active.length} cliente${active.length!==1?'s':''}</h2>
+  <table>
+    <thead><tr><th>Cliente</th><th>Tipo de Contrato</th><th>Status</th><th class="tr">Valor Mensal</th></tr></thead>
+    <tbody>
+      ${active.map(c=>`<tr>
+        <td><strong>${c.name}</strong>${c.notes?` <span style="color:#9090a8;font-weight:400">— ${c.notes}</span>`:''}</td>
+        <td><span class="badge b-${c.type}">${c.type==='mensal'?'Mensal':'Pontual'}</span></td>
+        <td><span class="badge b-${c.active?'ativo':'inativo'}">${c.active?'Ativo':'Inativo'}</span></td>
+        <td class="tr pos">${R(c.val)}</td>
+      </tr>`).join('')}
+      <tr class="tot-row">
+        <td colspan="3"><strong>MRR Total</strong></td>
+        <td class="tr">${R(mrr)}</td>
+      </tr>
+    </tbody>
+  </table>` : ''}
+
+  ${opts.incPJ ? `
+  <h2>Lançamentos · ATLAS Lab (PJ)</h2>
+  ${pjTxs.length ? `
+  <table>
+    <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Tipo</th><th class="tr">Valor</th></tr></thead>
+    <tbody>
+      ${pjTxs.map(t=>txRow(t, S.clients)).join('')}
+      <tr class="tot-row">
+        <td colspan="4"><strong>Resultado do Período</strong></td>
+        <td class="tr ${(pjRev-pjExp)>=0?'pos':'neg'}">${R(pjRev-pjExp)}</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="sum-bar">
+    <div class="si"><div class="sl">Receitas</div><div class="sv pos">${R(pjRev)}</div></div>
+    <div class="si"><div class="sl">Despesas</div><div class="sv neg">${R(pjExp)}</div></div>
+    <div class="si"><div class="sl">Impostos</div><div class="sv">${R(tax)}</div></div>
+    <div class="si"><div class="sl">Lucro Líquido</div><div class="sv ${net>=0?'pos':'neg'}">${R(net)}</div></div>
+  </div>` : '<div class="empty">Nenhum lançamento PJ neste período.</div>'}` : ''}
+
+  ${opts.incPF ? `
+  <h2>Lançamentos · Pessoal (PF)</h2>
+  ${pfTxs.length ? `
+  <table>
+    <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Tipo</th><th class="tr">Valor</th></tr></thead>
+    <tbody>
+      ${pfTxs.map(t=>txRow(t)).join('')}
+      <tr class="tot-row">
+        <td colspan="4"><strong>Saldo Pessoal</strong></td>
+        <td class="tr ${pfBal>=0?'pos':'neg'}">${R(pfBal)}</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="sum-bar">
+    <div class="si"><div class="sl">Receitas</div><div class="sv pos">${R(pfRev)}</div></div>
+    <div class="si"><div class="sl">Despesas</div><div class="sv neg">${R(pfExp)}</div></div>
+    <div class="si"><div class="sl">Saldo</div><div class="sv ${pfBal>=0?'pos':'neg'}">${R(pfBal)}</div></div>
+  </div>` : '<div class="empty">Nenhum lançamento pessoal neste período.</div>'}` : ''}
+
+</div>
+
+<div class="ftr">
+  <div class="fl">Atlas<span class="a">*</span>Lab<span class="a">*</span> · Gestão Financeira</div>
+  <div class="fr2">Relatório · ${monthName} · Uso interno · Gerado em ${today}</div>
+</div>
+
+<script>
+  window.onload = () => {
+    setTimeout(() => window.print(), 400);
+  };
+<\/script>
+</body>
+</html>`;
+}
+
+
+async function init() {
+  await load();
+  fillPJCats(); fillPFCats(); fillBillCats();
+  initExportModal();
+  renderDash();
+  checkBackupReminder();
+  setupPWA();
+}
+init();
+</script>
+
+<script>
+/* ── PWA Setup ────────────────────────────────────────────── */
+function setupPWA() {
+  // Build icon SVG as data URI
+  const iconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#151516"/>
+      <stop offset="50%"  stop-color="#0b2618"/>
+      <stop offset="100%" stop-color="#123020"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(%23bg)"/>
+  <circle cx="392" cy="120" r="20" fill="%23d4f53c" opacity="0.9"/>
+  <text x="60" y="355" font-family="Arial Black,sans-serif" font-size="272" font-weight="900" fill="white">A</text>
+  <text x="272" y="355" font-family="Arial,sans-serif" font-size="272" font-weight="400" fill="%23595959">L</text>
+</svg>`;
+
+  const iconDataURI = `data:image/svg+xml,${iconSVG}`;
+
+  // Inject apple touch icon
+  document.getElementById('apple-icon').href = iconDataURI;
+
+  // Build manifest blob
+  const manifest = {
+    name: 'ATLAS Financeiro',
+    short_name: 'ATLAS',
+    description: 'Gestão financeira — Atlas Lab',
+    start_url: './',
+    display: 'standalone',
+    orientation: 'portrait-primary',
+    background_color: '#07070e',
+    theme_color: '#07070e',
+    lang: 'pt-BR',
+    icons: [
+      { src: iconDataURI, sizes: '192x192', type: 'image/svg+xml', purpose: 'any maskable' },
+      { src: iconDataURI, sizes: '512x512', type: 'image/svg+xml', purpose: 'any maskable' }
+    ]
+  };
+
+  const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+  const manifestURL  = URL.createObjectURL(manifestBlob);
+  document.getElementById('pwa-manifest').href = manifestURL;
+
+  // Register service worker (inline via blob)
+  const swCode = `
+    const CACHE = 'atlas-v1';
+    const ASSETS = ['./', './index.html'];
+
+    self.addEventListener('install', e => {
+      e.waitUntil(
+        caches.open(CACHE).then(c => c.addAll(ASSETS)).catch(()=>{})
+      );
+      self.skipWaiting();
+    });
+
+    self.addEventListener('activate', e => {
+      e.waitUntil(
+        caches.keys().then(keys =>
+          Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))
+        )
+      );
+      self.clients.claim();
+    });
+
+    self.addEventListener('fetch', e => {
+      if(e.request.method !== 'GET') return;
+      e.respondWith(
+        fetch(e.request).catch(() =>
+          caches.match(e.request).then(r => r || caches.match('./'))
+        )
+      );
+    });
+  `;
+
+  const swBlob = new Blob([swCode], { type: 'application/javascript' });
+  const swURL  = URL.createObjectURL(swBlob);
+
+  // Service Worker — só funciona quando hospedado (Vercel/localhost)
+  if('serviceWorker' in navigator && location.protocol !== 'blob:') {
+    try {
+      const swBlob = new Blob([swCode], { type: 'application/javascript' });
+      const swURL  = URL.createObjectURL(swBlob);
+      navigator.serviceWorker.register(swURL)
+        .then(() => console.log('SW registered'))
+        .catch(() => {}); // Silencia erro em arquivo local
+    } catch(e) {}
+  }
+
+  // Listen for install prompt (Android/Desktop Chrome)
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    window._installPrompt = e;
+    const btn = document.getElementById('pwa-install-btn');
+    if(btn) btn.style.display = 'flex';
+  });
+
+  window.addEventListener('appinstalled', () => {
+    const btn = document.getElementById('pwa-install-btn');
+    if(btn) btn.style.display = 'none';
+    toast('✓ ATLAS Financeiro instalado com sucesso!');
+  });
+
+  // iOS detection — show install tip
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isStandalone = window.navigator.standalone;
+  if(isIOS && !isStandalone) {
+    setTimeout(() => showIOSInstallTip(), 3000);
+  }
+}
+
+function installPWA() {
+  if(window._installPrompt) {
+    window._installPrompt.prompt();
+    window._installPrompt.userChoice.then(result => {
+      if(result.outcome === 'accepted') {
+        document.getElementById('pwa-install-btn').style.display = 'none';
+      }
+      window._installPrompt = null;
+    });
+  }
+}
+
+function showIOSInstallTip() {
+  // Only show once per session
+  if(sessionStorage.getItem('ios-tip')) return;
+  sessionStorage.setItem('ios-tip', '1');
+
+  const tip = document.createElement('div');
+  tip.style.cssText = `
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+    background:#1a1a2e; border:1px solid rgba(212,245,60,.3);
+    border-radius:14px; padding:14px 18px; z-index:9999;
+    max-width:320px; width:90%; box-shadow:0 8px 32px rgba(0,0,0,.5);
+    animation: slideUp 0.3s ease;
+  `;
+  tip.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:#eeeef8;margin-bottom:5px">
+          Instalar ATLAS no iPhone
+        </div>
+        <div style="font-size:12px;color:#72728a;line-height:1.6">
+          Toque em <strong style="color:#d4f53c">Compartilhar ⬆</strong> no Safari e depois em
+          <strong style="color:#d4f53c">"Adicionar à Tela de Início"</strong>
+        </div>
+      </div>
+      <button onclick="this.parentElement.parentElement.remove()"
+        style="background:none;border:none;color:#72728a;font-size:18px;cursor:pointer;padding:0;line-height:1;flex-shrink:0">✕</button>
+    </div>
+  `;
+  document.body.appendChild(tip);
+  setTimeout(() => tip.style.opacity = '0', 8000);
+  setTimeout(() => tip.remove(), 8500);
+}
+</script>
+</body>
+</html>
